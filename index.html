@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>送你一份专属治愈 ✨</title>
     <style>
         /* ============================================================
@@ -16,8 +16,8 @@
             --color-primary-light: #f8b4c8;
             --color-text-dark:  #3d2c3b;
             --color-text-soft:  #6b5c6e;
-            --color-glass-bg:   rgba(255,255,255,0.55);
-            --color-glass-border: rgba(255,255,255,0.7);
+            --color-glass-bg:   rgba(255,255,255,0.65); /* 移动端略微加深不透明度，减少高斯模糊开销 */
+            --color-glass-border: rgba(255,255,255,0.8);
             --radius-card:      18px;
             --radius-btn:       50px;
             --shadow-card:      0 8px 32px rgba(0,0,0,0.06);
@@ -30,9 +30,7 @@
         /* ============================================================
            RESET & BASE
            ============================================================ */
-        *,
-        *::before,
-        *::after {
+        *, *::before, *::after {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
@@ -41,6 +39,7 @@
         body {
             width: 100vw;
             height: 100vh;
+            height: 100dvh; /* 修复移动端浏览器底部地址栏遮挡问题 */
             overflow: hidden;
             font-family: var(--font-family);
             display: flex;
@@ -60,7 +59,7 @@
         }
 
         /* ============================================================
-           AMBIENT PARTICLES (decorative background)
+           AMBIENT PARTICLES
            ============================================================ */
         #particles-canvas {
             position: fixed;
@@ -73,11 +72,11 @@
         }
 
         /* ============================================================
-           SUBTITLE – below button
+           UI ELEMENTS
            ============================================================ */
         .subtitle {
             position: fixed;
-            bottom: 48px;
+            bottom: calc(env(safe-area-inset-bottom) + 48px);
             left: 50%;
             transform: translateX(-50%);
             color: var(--color-text-soft);
@@ -87,14 +86,10 @@
             transition: opacity 0.6s ease;
             z-index: 2;
             pointer-events: none;
+            white-space: nowrap;
         }
-        .subtitle.hidden {
-            opacity: 0;
-        }
+        .subtitle.hidden { opacity: 0; }
 
-        /* ============================================================
-           GIFT BUTTON
-           ============================================================ */
         .gift-btn-wrap {
             position: relative;
             z-index: 10;
@@ -120,12 +115,12 @@
             border-radius: var(--radius-btn);
             cursor: pointer;
             box-shadow: var(--shadow-btn);
-            transition: transform 0.3s var(--transition-smooth),
-                        box-shadow 0.3s ease;
+            transition: transform 0.3s var(--transition-smooth), opacity 0.45s ease, box-shadow 0.3s ease;
             letter-spacing: 1px;
             outline: none;
-            -webkit-tap-highlight-color: transparent;
             overflow: hidden;
+            transform: scale(1) translateY(0);
+            opacity: 1;
         }
 
         @keyframes btnGradient {
@@ -134,7 +129,6 @@
             100% { background-position: 0% 50%; }
         }
 
-        /* 脉冲光晕环 */
         .gift-btn::before {
             content: '';
             position: absolute;
@@ -143,7 +137,6 @@
             background: linear-gradient(135deg, rgba(255,255,255,0.4), transparent, rgba(255,255,255,0.2));
             z-index: -1;
             opacity: 0;
-            transition: opacity 0.4s ease;
             animation: pulseRing 2.5s ease-in-out infinite;
         }
 
@@ -152,15 +145,24 @@
             50%      { opacity: 0.7; transform: scale(1.04); }
         }
 
-        .gift-btn:hover {
-            transform: translateY(-3px) scale(1.02);
-            box-shadow: 0 12px 40px rgba(232,115,138,0.5);
+        /* 解决移动端点击后 hover 状态粘滞的问题 */
+        @media (hover: hover) {
+            .gift-btn:hover {
+                transform: translateY(-3px) scale(1.02);
+                box-shadow: 0 12px 40px rgba(232,115,138,0.5);
+            }
+            .healing-card.show:hover {
+                opacity: 1;
+                transform: scale(1.08) rotate(1deg);
+                box-shadow: 0 12px 40px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.6);
+                z-index: 10;
+            }
         }
+        
         .gift-btn:active {
             transform: translateY(-1px) scale(0.98);
         }
 
-        /* ripple span */
         .gift-btn .ripple {
             position: absolute;
             border-radius: 50%;
@@ -177,31 +179,19 @@
             opacity: 0;
             transform: scale(0.6) translateY(20px);
             pointer-events: none;
-            transition: opacity 0.45s ease, transform 0.45s var(--transition-bounce);
         }
         .gift-btn.hidden + .subtitle {
             opacity: 0;
         }
 
-        /* visible transition (reappear) */
-        .gift-btn {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-            transition: opacity 0.45s ease,
-                        transform 0.45s var(--transition-bounce),
-                        box-shadow 0.3s ease;
-        }
-
         /* ============================================================
-           CARD CONTAINER
+           HEALING CARDS (GPU 优化版)
            ============================================================ */
         #card-container {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none; /* 容器不拦截点击 */
             z-index: 5;
             opacity: 1;
             transition: opacity 1.8s ease;
@@ -210,12 +200,16 @@
             opacity: 0;
         }
 
-        /* ============================================================
-           HEALING CARDS  (玻璃质感 · 精致圆角 · 优雅排版)
-           ============================================================ */
-        .healing-card {
+        /* 外层负责硬件加速的位移 (translate3d) */
+        .card-wrapper {
             position: absolute;
-            /* slightly larger for better readability */
+            top: 0; left: 0;
+            will-change: transform; /* 提示浏览器开启 GPU 加速 */
+            pointer-events: none;
+        }
+
+        /* 内层负责大小、旋转、颜色和悬浮动画 */
+        .healing-card {
             width: 148px;
             min-height: 40px;
             display: flex;
@@ -231,16 +225,15 @@
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
             border: 1px solid var(--color-glass-border);
-            box-shadow: var(--shadow-card);
+            box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255,255,255,0.6);
+            
             opacity: 0;
             transform: scale(0.4) rotate(-4deg);
-            transition: opacity 0.45s var(--transition-smooth),
-                        transform 0.5s var(--transition-bounce);
-            user-select: none;
-            will-change: transform, opacity, left, top;
-            /* subtle inner glow */
-            box-shadow: var(--shadow-card),
-                        inset 0 1px 0 rgba(255,255,255,0.6);
+            transition: opacity 0.45s var(--transition-smooth), 
+                        transform 0.5s var(--transition-bounce),
+                        box-shadow 0.25s ease;
+            pointer-events: auto; /* 允许卡片响应交互 */
+            white-space: nowrap;
         }
 
         .healing-card.show {
@@ -248,23 +241,12 @@
             transform: scale(1) rotate(0deg);
         }
 
-        /* Subtle hover lift (only when user manages to hover) */
-        .healing-card.show:hover {
-            opacity: 1;
-            transform: scale(1.08) rotate(1deg);
-            box-shadow: 0 12px 40px rgba(0,0,0,0.10),
-                        inset 0 1px 0 rgba(255,255,255,0.6);
-            transition: transform 0.25s var(--transition-smooth),
-                        opacity 0.25s ease,
-                        box-shadow 0.25s ease;
-        }
-
         /* ============================================================
-           LOADING INDICATOR (during heart building)
+           LOADING INDICATOR
            ============================================================ */
         .loading-dot {
             position: fixed;
-            bottom: 20px;
+            bottom: calc(env(safe-area-inset-bottom) + 20px);
             left: 50%;
             transform: translateX(-50%);
             z-index: 6;
@@ -274,12 +256,9 @@
             opacity: 0;
             transition: opacity 0.4s ease;
         }
-        .loading-dot.active {
-            opacity: 1;
-        }
+        .loading-dot.active { opacity: 1; }
         .loading-dot span {
-            width: 8px;
-            height: 8px;
+            width: 8px; height: 8px;
             border-radius: 50%;
             background: var(--color-primary-light);
             animation: dotBounce 1.2s ease-in-out infinite;
@@ -295,43 +274,29 @@
         }
 
         /* ============================================================
-           RESPONSIVE
+           RESPONSIVE (精细化适配)
            ============================================================ */
         @media (max-width: 600px) {
-            .gift-btn {
-                padding: 14px 32px;
-                font-size: 17px;
-            }
+            .gift-btn { padding: 14px 32px; font-size: 17px; }
             .healing-card {
-                width: 110px;
-                min-height: 34px;
-                font-size: 12px;
-                padding: 4px 10px;
-                border-radius: 14px;
+                width: 110px; min-height: 34px; font-size: 12px;
+                padding: 4px 10px; border-radius: 14px;
             }
-            .subtitle {
-                font-size: 12px;
-                bottom: 36px;
-            }
+            .subtitle { font-size: 12px; bottom: calc(env(safe-area-inset-bottom) + 36px); }
         }
 
         @media (max-width: 380px) {
             .healing-card {
-                width: 90px;
-                min-height: 30px;
-                font-size: 11px;
-                padding: 3px 8px;
-                border-radius: 12px;
+                width: 95px; min-height: 30px; font-size: 11px;
+                padding: 3px 6px; border-radius: 12px;
             }
         }
     </style>
 </head>
 <body>
 
-    <!-- ====== Ambient Particles (Canvas) ====== -->
     <canvas id="particles-canvas"></canvas>
 
-    <!-- ====== Button Area ====== -->
     <div class="gift-btn-wrap">
         <button id="giftBtn" class="gift-btn">
             <span class="btn-icon">🎁</span>
@@ -340,18 +305,14 @@
         <div class="subtitle">轻触 · 感受温柔</div>
     </div>
 
-    <!-- ====== Card Container ====== -->
     <div id="card-container"></div>
 
-    <!-- ====== Loading Indicator ====== -->
     <div id="loadingDot" class="loading-dot">
         <span></span><span></span><span></span><span></span><span></span>
     </div>
 
 <script>
-    // ================================================================
-    // 1. AMBIENT PARTICLES (floating orbs)
-    // ================================================================
+    // 1. 氛围粒子 (保持原样，Canvas 性能尚可)
     ;(function initParticles() {
         const canvas = document.getElementById('particles-canvas');
         const ctx = canvas.getContext('2d');
@@ -364,35 +325,29 @@
         window.addEventListener('resize', resize);
         resize();
 
-        const COUNT = 45;
+        // 移动端减少粒子数量降低性能消耗
+        const COUNT = w < 600 ? 25 : 45; 
         for (let i = 0; i < COUNT; i++) {
             particles.push({
-                x: Math.random() * w,
-                y: Math.random() * h,
+                x: Math.random() * w, y: Math.random() * h,
                 r: Math.random() * 4 + 2,
-                dx: (Math.random() - 0.5) * 0.35,
-                dy: (Math.random() - 0.5) * 0.35,
-                alpha: Math.random() * 0.35 + 0.1,
-                hue: Math.random() * 60 + 280, // purple-pink range
+                dx: (Math.random() - 0.5) * 0.35, dy: (Math.random() - 0.5) * 0.35,
+                alpha: Math.random() * 0.35 + 0.1, hue: Math.random() * 60 + 280
             });
         }
 
         function draw() {
             ctx.clearRect(0, 0, w, h);
             particles.forEach(p => {
-                p.x += p.dx;
-                p.y += p.dy;
-                if (p.x < 0) p.x = w;
-                if (p.x > w) p.x = 0;
-                if (p.y < 0) p.y = h;
-                if (p.y > h) p.y = 0;
+                p.x += p.dx; p.y += p.dy;
+                if (p.x < 0) p.x = w; if (p.x > w) p.x = 0;
+                if (p.y < 0) p.y = h; if (p.y > h) p.y = 0;
 
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
                 ctx.fillStyle = `hsla(${p.hue}, 60%, 75%, ${p.alpha})`;
                 ctx.fill();
 
-                // soft glow
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, p.r * 2.5, 0, Math.PI * 2);
                 ctx.fillStyle = `hsla(${p.hue}, 60%, 80%, ${p.alpha * 0.2})`;
@@ -403,43 +358,29 @@
         draw();
     })();
 
-    // ================================================================
-    // 2. WORDS
-    // ================================================================
     const WORDS = [
-        "自信","温柔","接纳自己","你超棒","独一无二",
-        "闪闪发光","深呼吸","拥抱自己","你值得被爱","保持微笑",
-        "慢慢来","听从内心","允许一切发生","你已经做得很好了",
-        "给自己一个拥抱","热爱生活","不完美也很美","活在当下","治愈自己",
-        "勇敢","开心","自在","从容","坚强",
-        "温暖","美好","安心","轻松","快乐",
-        "知足","感恩","善良","纯粹","坦荡",
-        "向阳而生","心向阳光","万事顺遂","平安喜乐","未来可期",
-        "不必焦虑","好好生活","善待自己","爱自己","放松",
-        "不必完美","允许慢一点","你很好","不必比较","做自己",
-        "平静","愉悦","舒心","自在如风","无忧",
-        "被偏爱","有底气","有力量","有温度","有光芒",
-        "轻装上阵","放下疲惫","照顾好自己","享受当下","随心而行",
-        "温柔以待","与自己和解","不必逞强","不必慌张","保持热爱",
-        "满心欢喜","眼里有光","心中有暖","步履不停","自在生长",
-        "万事胜意","平安顺遂","喜乐安康","无忧无虑","自在欢喜",
-        "温柔坚定","清醒独立","从容自在","平静喜乐","温暖有光",
-        "好好爱自己","生活很可爱","世界很温柔","你很珍贵","值得一切美好",
-        "放松心情","停止内耗","放过自己","安心就好","一切都好",
-        "慢慢变好","静静成长","稳稳幸福","岁岁欢喜","年年无忧"
+        "自信","温柔","接纳自己","你超棒","独一无二","闪闪发光","深呼吸","拥抱自己","你值得被爱","保持微笑",
+        "慢慢来","听从内心","允许一切发生","你已经做得很好了","给自己一个拥抱","热爱生活","不完美也很美","活在当下",
+        "治愈自己","勇敢","开心","自在","从容","坚强","温暖","美好","安心","轻松","快乐","知足","感恩",
+        "善良","纯粹","坦荡","向阳而生","心向阳光","万事顺遂","平安喜乐","未来可期","不必焦虑","好好生活",
+        "善待自己","爱自己","放松","不必完美","允许慢一点","你很好","不必比较","做自己","平静","愉悦",
+        "舒心","自在如风","无忧","被偏爱","有底气","有力量","有温度","有光芒","轻装上阵","放下疲惫",
+        "照顾好自己","享受当下","随心而行","温柔以待","与自己和解","不必逞强","不必慌张","保持热爱",
+        "满心欢喜","眼里有光","心中有暖","步履不停","自在生长","万事胜意","平安顺遂","喜乐安康","无忧无虑"
     ];
 
-    const CARD_W = 148;
-    const CARD_H = 40;
-
-    // ================================================================
-    // 3. RIPPLE EFFECT on button
-    // ================================================================
+    // 水波纹点击效果
     document.getElementById('giftBtn').addEventListener('click', function(e) {
         const rect = this.getBoundingClientRect();
         const size = Math.max(rect.width, rect.height);
-        const x = e.clientX - rect.left - size / 2;
-        const y = e.clientY - rect.top - size / 2;
+        // 处理移动端触摸与鼠标点击的坐标差异
+        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+        
+        if(!clientX || !clientY) return;
+
+        const x = clientX - rect.left - size / 2;
+        const y = clientY - rect.top - size / 2;
         const ripple = document.createElement('span');
         ripple.className = 'ripple';
         ripple.style.width = ripple.style.height = size + 'px';
@@ -449,9 +390,7 @@
         setTimeout(() => ripple.remove(), 600);
     });
 
-    // ================================================================
-    // 4. HEALING APP (optimized)
-    // ================================================================
+    // 4. HEALING APP (重构 GPU 动画逻辑)
     class HealingApp {
         constructor(onComplete) {
             this.container = document.getElementById('card-container');
@@ -460,15 +399,19 @@
 
             this.sw = window.innerWidth;
             this.sh = window.innerHeight;
-            this.numWindows = 100;
-            this.cards = [];
+            
+            // 根据屏幕宽度动态调整卡片数量和尺寸，防止移动端卡顿和越界
+            this.isMobile = this.sw < 600;
+            this.numWindows = this.isMobile ? 65 : 100; 
+            
+            this.cardW = this.sw <= 380 ? 95 : (this.sw <= 600 ? 110 : 148);
+            this.cardH = this.sw <= 380 ? 30 : (this.sw <= 600 ? 34 : 40);
 
+            this.cards = [];
             this.heartCoords = this.calcHeart();
             this.scatterCoords = this.calcScatter();
 
-            // show loading
             this.loadingEl.classList.add('active');
-
             this.stepHeart(0);
         }
 
@@ -476,7 +419,7 @@
             const r = Math.floor(Math.random() * 40) + 216;
             const g = Math.floor(Math.random() * 40) + 216;
             const b = Math.floor(Math.random() * 40) + 216;
-            return `rgb(${r},${g},${b})`;
+            return `rgba(${r},${g},${b}, 0.85)`; // 加入透明度优化渲染
         }
 
         randWord() {
@@ -486,15 +429,18 @@
         calcHeart() {
             const coords = [];
             const cx = this.sw / 2;
-            const cy = this.sh / 2 - 40;
-            const scale = Math.min(this.sw, this.sh) / 50;
+            const cy = this.sh / 2 - (this.isMobile ? 20 : 40);
+            // 确保爱心不超出屏幕边界
+            const safeWidth = Math.min(this.sw - this.cardW, this.sh) * 0.9;
+            const scale = safeWidth / 45; 
+
             for (let i = 0; i < this.numWindows; i++) {
                 const t = i * (2 * Math.PI / this.numWindows);
                 const x = 16 * Math.pow(Math.sin(t), 3);
                 const y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
                 coords.push({
-                    x: cx + x * scale - CARD_W / 2,
-                    y: cy - y * scale - CARD_H / 2
+                    x: cx + x * scale - this.cardW / 2,
+                    y: cy - y * scale - this.cardH / 2
                 });
             }
             return coords;
@@ -513,7 +459,6 @@
                 for (let c = 0; c < cols; c++)
                     grid.push({c, r});
 
-            // shuffle
             for (let i = grid.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [grid[i], grid[j]] = [grid[j], grid[i]];
@@ -525,50 +470,58 @@
                 const cy = p.r * cellH + cellH / 2;
                 const jx = (Math.random() * 0.8 - 0.4) * cellW;
                 const jy = (Math.random() * 0.8 - 0.4) * cellH;
-                let x = cx + jx - CARD_W / 2;
-                let y = cy + jy - CARD_H / 2;
-                x = Math.max(0, Math.min(this.sw - CARD_W, x));
-                y = Math.max(0, Math.min(this.sh - CARD_H, y));
-                coords.push({x, y, rot: (Math.random() - 0.5) * 20}); // random rotation target
+                
+                // 严谨的边界检测，防止出现滚动条
+                let x = cx + jx - this.cardW / 2;
+                let y = cy + jy - this.cardH / 2;
+                x = Math.max(10, Math.min(this.sw - this.cardW - 10, x));
+                y = Math.max(10, Math.min(this.sh - this.cardH - 10, y));
+                
+                coords.push({x, y, rot: (Math.random() - 0.5) * 20}); 
             }
             return coords;
         }
 
         createCard(x, y) {
-            const el = document.createElement('div');
-            el.className = 'healing-card';
-            el.style.left = x + 'px';
-            el.style.top = y + 'px';
-            el.style.background = `linear-gradient(135deg, ${this.randPastel()}, ${this.randPastel()})`;
-            el.textContent = this.randWord();
-            this.container.appendChild(el);
+            // 使用内外层解耦：外层 wrapper 负责位移，内层 card 负责内容和入场动画
+            const wrapper = document.createElement('div');
+            wrapper.className = 'card-wrapper';
+            wrapper.style.transform = `translate3d(${x}px, ${y}px, 0)`;
 
-            // double rAF for smooth entry
+            const card = document.createElement('div');
+            card.className = 'healing-card';
+            card.style.background = `linear-gradient(135deg, ${this.randPastel()}, ${this.randPastel()})`;
+            card.textContent = this.randWord();
+            
+            wrapper.appendChild(card);
+            this.container.appendChild(wrapper);
+
             requestAnimationFrame(() => {
-                requestAnimationFrame(() => el.classList.add('show'));
+                requestAnimationFrame(() => card.classList.add('show'));
             });
-            return el;
+            return { wrapper, card };
         }
 
         stepHeart(idx) {
             if (idx < this.numWindows) {
                 const coord = this.heartCoords[idx];
-                const el = this.createCard(coord.x, coord.y);
+                const elements = this.createCard(coord.x, coord.y);
                 this.cards.push({
-                    el,
-                    cx: coord.x,
-                    cy: coord.y,
+                    wrapper: elements.wrapper,
+                    card: elements.card,
+                    cx: coord.x, cy: coord.y,
                     tx: this.scatterCoords[idx].x,
                     ty: this.scatterCoords[idx].y,
                     trot: this.scatterCoords[idx].rot,
                     speed: Math.random() * (0.055 - 0.012) + 0.012,
                 });
-                const delay = idx < 60 ? 30 : 45;
+                
+                // 移动端数量变少，降低延迟以保证心形拼合节奏
+                const delay = this.isMobile ? (idx < 40 ? 35 : 50) : (idx < 60 ? 30 : 45);
                 setTimeout(() => this.stepHeart(idx + 1), delay);
             } else {
-                // heart fully built
                 this.loadingEl.classList.remove('active');
-                setTimeout(() => this.startScatter(), 2800);
+                setTimeout(() => this.startScatter(), 2000);
             }
         }
 
@@ -585,20 +538,17 @@
                         c.cx += dx * c.speed;
                         c.cy += dy * c.speed;
 
-                        // slight rotation during scatter
-                        const progress = Math.abs(dx) > 1 || Math.abs(dy) > 1 ? 1 : 0;
+                        // GPU 硬件加速位移
+                        c.wrapper.style.transform = `translate3d(${c.cx}px, ${c.cy}px, 0)`;
+                        
                         const rot = c.trot * (1 - Math.abs(dx) / (Math.abs(dx) + 50 || 1));
-
-                        c.el.style.left = c.cx + 'px';
-                        c.el.style.top = c.cy + 'px';
-                        c.el.style.transform = `rotate(${rot}deg)`;
+                        c.card.style.transform = `rotate(${rot}deg)`;
                     }
                 });
 
                 if (moving) {
                     requestAnimationFrame(animate);
                 } else {
-                    // All cards settled – hold then fade out
                     setTimeout(() => this.closeAll(), 5000);
                 }
             };
@@ -606,19 +556,16 @@
         }
 
         closeAll() {
-            // fade out container
             this.container.classList.add('fade-out');
             setTimeout(() => {
                 this.container.innerHTML = '';
                 this.container.classList.remove('fade-out');
                 if (typeof this.onComplete === 'function') this.onComplete();
-            }, 2000);
+            }, 1800);
         }
     }
 
-    // ================================================================
     // 5. MAIN
-    // ================================================================
     window.addEventListener('load', () => {
         const btn = document.getElementById('giftBtn');
         let playing = false;
